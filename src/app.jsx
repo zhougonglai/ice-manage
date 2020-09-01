@@ -13,7 +13,10 @@ const appConfig = {
           onConfig: (config) => {
             const token = sessionStorage.getItem('account_token');
             return token
-              ? { ...config, params: { account_token: token } }
+              ? {
+                  ...config,
+                  params: { ...config.params, account_token: token },
+                }
               : config;
           },
         },

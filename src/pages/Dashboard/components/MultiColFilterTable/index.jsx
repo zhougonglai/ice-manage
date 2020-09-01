@@ -9,6 +9,7 @@ import {
   Card,
   Pagination,
   Icon,
+  Badge,
 } from '@alifd/next';
 import { useRequest } from 'ice';
 import BusinessAccount from '@/services/businessAccount';
@@ -20,36 +21,21 @@ import styles from './index.module.scss';
 const FormItem = Form.Item;
 
 const getTableData = ({ current, pageSize }, formData) => {
-  // console.log(current, pageSize, formData);
+  console.log(current, pageSize, formData);
 
-  if (!formData.status || formData.status === 'normal') {
-    let query = `page=${current}&size=${pageSize}`;
-    Object.entries(formData).forEach(([key, value]) => {
-      if (value) {
-        query += `&${key}=${value}`;
-      }
+  return BusinessAccount.netbarList({
+    page: current,
+    page_size: pageSize,
+    name: formData.keyword,
+  })
+    .then((res) => res.data)
+    .then(({ items, pager }) => {
+      console.log(items);
+      return {
+        total: pager.page_size * pager.total_page,
+        list: items,
+      };
     });
-    return fetch(`https://randomuser.me/api?results=${pageSize}&${query}`)
-      .then((res) => res.json())
-      .then((res) => ({
-        total: 55,
-        list: res.results.slice(0, 10),
-      }));
-  }
-
-  if (formData.status === 'empty') {
-    return Promise.resolve([]);
-  }
-
-  if (formData.status === 'exception') {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        reject(new Error('data exception'));
-      }, 1000);
-    });
-  }
-
-  return Promise.resolve([]);
 };
 
 const dataSource = [
@@ -60,46 +46,27 @@ const dataSource = [
 ];
 
 const defaultColumnWidth = {
-  name: 120,
-  email: 200,
-  phone: 200,
-  gender: 100,
+  short: 100,
+  middle: 200,
+  long: 300,
 }; // Filter区域 默认为收起状态
 
-const defaultExpandStatus = false; // 展开状态下一共有多少个项
 const defaultSearchOptions = {
-  name: '',
-  gender: 'all',
   name: '',
 };
 const expandFieldLenth = 5; // 收起状态下一共有多少项目
-
 const collapseFieldLenth = 3;
-
-const getNextActionListSpan = (expandStatus) => {
-  const totalFieldLength = expandStatus ? expandFieldLenth : collapseFieldLenth;
-
-  if (totalFieldLength < 3) {
-    return 3;
-  }
-
-  return (4 - (totalFieldLength % 4)) * 3;
-};
 
 const MultiColFilterTable = () => {
   const [state, setState] = useSetState({
     columnWidth: defaultColumnWidth,
     searchOptions: defaultSearchOptions,
-    expandStatus: defaultExpandStatus,
   });
-  const { data: tableData, request: tableReq } = useRequest(
-    BusinessAccount.netbarList
-  );
 
   const field = Field.useField([]);
 
   useEffect(() => {
-    tableReq();
+    // tableReq();
   }, []);
 
   const {
@@ -114,32 +81,48 @@ const MultiColFilterTable = () => {
 
   const { submit, reset } = search;
   const { columnWidth, searchOptions } = state;
+  const operation = (v, i, r) => {
+    return (
+      <div className="flex justify-center col-gap-2">
+        {r.status === 0 && (
+          <Button text type="primary">
+            暂停
+          </Button>
+        )}
+        {r.status === 1 && (
+          <Button text type="primary">
+            开始
+          </Button>
+        )}
+        <Button text type="primary">
+          编辑
+        </Button>
+        {r.status < 2 && (
+          <Button text type="primary">
+            套餐管理
+          </Button>
+        )}
+        <Button text type="primary">
+          删除
+        </Button>
+      </div>
+    );
+  };
 
-  const handleResizeChange = useCallback(
-    (dataIndex, width) => {
-      const newWidth = { ...columnWidth };
-      newWidth[dataIndex] += width;
-      setState({
-        columnWidth: newWidth,
-      });
-    },
-    [columnWidth, setState]
+  const statusCell = (v, i, r) => (
+    <>
+      <Badge
+        dot
+        className="m-2"
+        style={{
+          backgroundColor: ['#52c41a', '#f5222d', 'gray', '#ffec3d'][v],
+        }}
+      />
+      {['正常', '已暂停', '已过期', '已冻结'][v]}
+    </>
   );
 
-  const handleGender = useCallback(
-    (value) => {
-      setState({
-        searchOptions: {
-          gender: value,
-        },
-      });
-    },
-    [searchOptions, setState]
-  );
-
-  useEffect(() => {
-    console.log('actionListSpan', state.actionListSpan, process.env.NODE_ENV);
-  });
+  const handleSearch = () => {};
 
   return (
     <div className={styles.container}>
@@ -150,17 +133,15 @@ const MultiColFilterTable = () => {
               <Select name="name" defaultValue="name" dataSource={dataSource} />
             </FormItem>
             <FormItem>
-              <Input placeholder="请输入关键词" name="phone" />
+              <Input placeholder="请输入关键词" name="keyword" trim hasClear />
             </FormItem>
             <FormItem className={[styles['form-actions']].join(' ')}>
-              <Form.Submit type="primary" size="small">
+              <Form.Submit type="primary" size="small" onClick={submit}>
                 <Icon type="search" />
               </Form.Submit>
             </FormItem>
             <div className="flex-1" />
-            <Button type="primary" onClick={submit}>
-              + 新增
-            </Button>
+            <Button type="primary">+ 新增</Button>
           </Form>
         </Card.Content>
       </Card>
@@ -168,35 +149,91 @@ const MultiColFilterTable = () => {
         <Card.Content>
           <Table
             {...tableProps}
-            onResizeChange={handleResizeChange}
+            className="scroller"
             emptyContent={
               error ? <ExceptionBlock onRefresh={refresh} /> : <EmptyBlock />
             }
-            primaryKey="email"
+            size="small"
           >
             <Table.Column
-              title="name"
-              dataIndex="name.last"
+              width={defaultColumnWidth.short}
+              title="ID"
+              dataIndex="id"
               resizable
-              width={columnWidth.name}
             />
             <Table.Column
-              title="email"
-              dataIndex="email"
+              width={defaultColumnWidth.short}
+              title="网吧名称"
+              dataIndex="name"
               resizable
-              width={columnWidth.email}
             />
             <Table.Column
-              title="phone"
-              dataIndex="phone"
+              width={defaultColumnWidth.middle}
+              title="账号"
+              dataIndex="account"
               resizable
-              width={columnWidth.phone}
             />
             <Table.Column
-              title="gender"
-              dataIndex="gender"
+              width={defaultColumnWidth.short}
+              title="计费方式"
+              dataIndex="billing_type"
+              cell={(v) => (v ? '扫码付费' : '包月付费')}
               resizable
-              width={columnWidth.gender}
+            />
+            <Table.Column
+              width={defaultColumnWidth.short}
+              title="连接数"
+              dataIndex="max_connection_num"
+              resizable
+            />
+            <Table.Column
+              width={defaultColumnWidth.middle}
+              title="所属代理"
+              dataIndex="proxy_name"
+              resizable
+            />
+            <Table.Column
+              width={defaultColumnWidth.short}
+              title="当前在线"
+              dataIndex="now_connection_num"
+              resizable
+            />
+            <Table.Column
+              width={defaultColumnWidth.short}
+              title="绑定IP"
+              dataIndex="bind_ip"
+              resizable
+            />
+            <Table.Column
+              width={defaultColumnWidth.middle}
+              title="创建时间"
+              dataIndex="created_time"
+              resizable
+            />
+            <Table.Column
+              width={defaultColumnWidth.middle}
+              title="到期时间"
+              dataIndex="expire_time"
+              resizable
+            />
+            <Table.Column
+              width={defaultColumnWidth.short}
+              title="绑定城市"
+              dataIndex="address"
+              resizable
+            />
+            <Table.Column
+              width={defaultColumnWidth.short}
+              title="状态"
+              dataIndex="status"
+              cell={statusCell}
+              resizable
+            />
+            <Table.Column
+              width={defaultColumnWidth.middle}
+              title="编辑"
+              lock="right"
+              cell={operation}
             />
           </Table>
           <Pagination

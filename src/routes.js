@@ -4,6 +4,7 @@ import UserLayout from '@/layouts/UserLayout';
 import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import OrderManage from '@/pages/OrderManage';
+import WhiteList from '@/pages/WhiteList';
 
 const routerConfig = [
   {
@@ -17,6 +18,7 @@ const routerConfig = [
     children: [
       { path: '/business/account', component: Dashboard },
       { path: '/business/order', component: OrderManage },
+      { path: '/business/whitelist', component: WhiteList },
       { path: '/', redirect: '/business/account' },
     ],
   },

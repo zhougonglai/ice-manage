@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Message, Form, Divider, Checkbox, Icon } from '@alifd/next';
 import { useRequest, useHistory, store } from 'ice';
+import { useSessionStorageState } from 'ahooks';
 import authService from '@/services/auth';
 import md5 from 'md5-js';
 
-import { useInterval } from './utils';
 import 'tailwindcss/dist/tailwind.min.css';
 import styles from './index.module.scss';
 
@@ -19,25 +19,12 @@ const DEFAULT_DATA = {
 const LoginBlock = (props) => {
   const { dataSource = DEFAULT_DATA } = props;
   const [postData, setValue] = useState(dataSource);
-  const [isRunning, checkRunning] = useState(false);
   const [second, setSecond] = useState(59);
   const { data: captchaData, request: captchaRequest } = useRequest(
     authService.captcha
   );
   const [userState, userDispatchers] = store.useModel('user');
   const history = useHistory();
-
-  useInterval(
-    () => {
-      setSecond(second - 1);
-
-      if (second <= 0) {
-        checkRunning(false);
-        setSecond(59);
-      }
-    },
-    isRunning ? 1000 : null
-  );
 
   useEffect(() => {
     captchaRequest({ height: 38 });
@@ -47,21 +34,13 @@ const LoginBlock = (props) => {
     setValue(values);
   };
 
-  const sendCode = (values, errors) => {
-    if (errors) {
-      return;
-    } // get values.phone
-
-    checkRunning(true);
-  };
-
   const handleSubmit = async (values, errors) => {
     if (errors) {
       console.log('errors', errors);
       return;
     }
 
-    const { code, msg } = await userDispatchers.login({
+    const { code, data, msg } = await userDispatchers.login({
       ...values,
       captcha_key: captchaData.data.captcha_key,
       password: md5(values.password),
@@ -70,6 +49,7 @@ const LoginBlock = (props) => {
       captchaRequest({ height: 38 });
       Message.error(msg);
     } else {
+      sessionStorage.setItem('user', JSON.stringify(data));
       Message.success('登录成功');
       history.push('/');
     }

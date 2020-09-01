@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { store, useHistory } from 'ice';
 import { Shell, ConfigProvider } from '@alifd/next';
 import PageNav from './components/PageNav';
 import Logo from './components/Logo';
@@ -46,6 +47,18 @@ export default function BasicLayout({ children }) {
   };
 
   const [device, setDevice] = useState(getDevice(NaN));
+  const [model, dispatchs] = store.useModel('user');
+  const history = useHistory();
+
+  useEffect(() => {
+    if (model.user || sessionStorage.user) {
+      if (!model.user) {
+        dispatchs.update(JSON.parse(sessionStorage.user));
+      }
+    } else {
+      history.push('/user/login');
+    }
+  }, [model.user]);
 
   if (typeof window !== 'undefined') {
     window.addEventListener('optimizedResize', (e) => {
@@ -63,10 +76,7 @@ export default function BasicLayout({ children }) {
         }}
       >
         <Shell.Branding>
-          <Logo
-            image="https://img.alicdn.com/tfs/TB1.ZBecq67gK0jSZFHXXa9jVXa-904-826.png"
-            text="Logo"
-          />
+          <Logo image="https://jiasu.nn.com/img/logo.png" />
         </Shell.Branding>
         <Shell.Navigation
           direction="hoz"
@@ -75,13 +85,13 @@ export default function BasicLayout({ children }) {
           }}
         />
         <Shell.Action>
-          <HeaderAvatar />
+          <HeaderAvatar name={model.user?.name} mail={model.user?.email} />
         </Shell.Action>
         <Shell.Navigation>
           <PageNav />
         </Shell.Navigation>
 
-        <Shell.Content>{children}</Shell.Content>
+        <Shell.Content>{model.user && children}</Shell.Content>
         <Shell.Footer>
           <Footer />
         </Shell.Footer>
