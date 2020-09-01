@@ -1,0 +1,3 @@
+@Host = http://dev-staff-netbarapi.leigod.com
+
+GET {{Host}}/netbar/net-bar/list
